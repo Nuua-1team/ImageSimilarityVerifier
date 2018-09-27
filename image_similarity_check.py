@@ -51,35 +51,42 @@ def build_graph(hub_module_url, target_image_path):
     return input_byte, similarity
 
 
-target_img_path = 'new_target_img.jpg'
-input_img_paths = ['new_test%d.jpg' % i for i in range(1, 8)]
+if __name__ == "__main__":
 
-import time
+    target_img_path = 'new_target_img.jpg'
+    input_img_paths = ['new_test%d.jpg' % i for i in range(1, 9)]
 
-tf.logging.set_verbosity(tf.logging.ERROR)
+    import time
 
-# Load bytes of image files
-image_bytes = [tf.gfile.GFile(name, 'rb').read()
-               for name in [target_img_path] + input_img_paths]
+    tf.logging.set_verbosity(tf.logging.ERROR)
 
-hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_96/feature_vector/1"  # @param {type:"string"}
+    # Load bytes of image files
+    image_bytes = [tf.gfile.GFile(name, 'rb').read()
+                   for name in [target_img_path] + input_img_paths]
 
-with tf.Graph().as_default():
-    input_byte, similarity_op = build_graph(hub_module_url, target_img_path)
+    #hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_96/feature_vector/1"  # @param {type:"string"}
+    hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2" # 224x224
 
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        t0 = time.time()  # for time check
+    with tf.Graph().as_default():
+        input_byte, similarity_op = build_graph(hub_module_url, target_img_path)
 
-        # Inference similarities
-        similarities = sess.run(similarity_op, feed_dict={input_byte: image_bytes})
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            t0 = time.time()  # for time check
 
-        print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
+            # Inference similarities
+            similarities = sess.run(similarity_op, feed_dict={input_byte: image_bytes})
 
-# Display results
-print("# Target image")
-print("- similarity: %.2f" % similarities[0])
+            print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
 
-print("# Input images")
-for similarity, input_img_path in zip(similarities[1:], input_img_paths):
-    print("- similarity: %.2f" % similarity)
+    # Display results
+    print("# Target image")
+    print("- similarity: %.2f" % similarities[0])
+
+    print("# Input images")
+    for similarity, input_img_path in zip(similarities[1:], input_img_paths):
+        print("- similarity: %.2f" % similarity)
+
+
+
+
