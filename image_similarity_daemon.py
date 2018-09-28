@@ -9,11 +9,21 @@ import os
 class ImageValidator:
 
     def __init__(self, test_mode=False):
-        self.test_mode = test_mode
-        self.positive_img_count = 0
-        self.negative_img_count = 0
-        self.total_img_count = 0
-        pass
+        try:
+            conn = self.get_connection()
+            self.test_mode = test_mode
+
+            with conn.cursor() as cursor:
+                param_init_sql = 'SELECT positive_img_count, negative_img_count, total_img_count ' \
+                      'FROM similarity_param'
+                cursor.execute(param_init_sql)
+                result = cursor.fetchone()
+
+                self.positive_img_count = result['positive_img_count']
+                self.negative_img_count = result['negative_img_count']
+                self.total_img_count = result['total_img_count']
+        finally:
+            conn.close()
 
     def get_connection(self):
         conn = pymysql.connect(host=host,
@@ -29,12 +39,9 @@ class ImageValidator:
     def download_img(self, url):
 
         # file path and file name to download
-        if self.test_mode:
-            path = "C:/Users/kelvin/workspace/dev/ImgSimilarityCheck/download"
-        else:
-            path = os.getcwd() + "/download"
+        path = os.getcwd() + "/download"
 
-        filename = "new_test1.jpg"
+        filename = "downloaded_img.jpg"
 
         # Create when directory does not exist
         if not os.path.isdir(path):
@@ -43,10 +50,10 @@ class ImageValidator:
         # download
         urllib.request.urlretrieve(url, path + filename)
 
-    def similarity_test(self):
+    def similarity_test(self, search_keyword=''):
         # 나중에 new 뺄것
         target_img_path = 'download/new_target_img.jpg'
-        input_img_paths = 'download/new_test1.jpg'
+        input_img_paths = 'download/downloaded_img.jpg'
 
         import time
         tf.logging.set_verbosity(tf.logging.ERROR)
@@ -83,11 +90,13 @@ class ImageValidator:
 
             with connection.cursor() as cursor:
                 # Create a new record
-                get_url_sql = 'SELECT image_url FROM image_info WHERE image_info.is_saved = 0 LIMIT 1'
+                get_url_sql = 'SELECT image_url, search_keyword FROM image_info WHERE image_info.is_saved = 0 LIMIT 1'
                 cursor.execute(get_url_sql)
                 res = cursor.fetchone()
                 url = res['image_url']
+                search_keyword = res['search_keyword']
                 print('url : ', url)
+                print('search_keyword : ', search_keyword)
 
             # download img
             self.download_img(url)
@@ -103,17 +112,29 @@ class ImageValidator:
             if similarity > threshold:
                 status = 1
                 # 이미지가 이동할 경로 설정(유사한 이미지 경로)
-                img_path = ""
                 self.positive_img_count += 1
+                base_positive_path = os.getcwd() + '/positive/'
+                img_path = str(self.positive_img_count // 1000) + '/'
+                img_name = str(self.positive_img_count % 1000) + '.jpg'
+
             else:
                 status = 2
                 # 이미지가 이동할 경로 설정(유사하지 않은 이미지 경로)
-                img_path = ""
                 self.negative_img_count += 1
+                base_positive_path = os.getcwd() + '/negative/'
+                img_path = str(self.negative_img_count // 1000) + '/'
+                img_name = str(self.negative_img_count % 1000) + '.jpg'
 
-            file_address = base_path + '/' + img_path + '/' + img_name
+            file_address = base_path + img_path + img_name
+
             # 이미지를 file_address 로 이동시킴
             # 폴더 없으면 만드는 코드 작성(os,mkdir())
+            if not os.path.isdir(base_path+img_path):
+                os.makedirs(base_path+img_path)
+
+            os.rename(base_path + '/downloaded_img.jpg', file_address)
+
+            self.total_img_count += 1
 
             # update img
             with connection.cursor() as cursor:
@@ -122,16 +143,16 @@ class ImageValidator:
 
         finally:
             # 현재까지의 이미지 사진들을 db에 저장함
-            self.total_img_count += 1
+
             counts = dict()
-            counts['postive_img_count'] = self.positive_img_count
+            counts['positive_img_count'] = self.positive_img_count
             counts['negative_img_count'] = self.negative_img_count
             counts['total_img_count'] = self.total_img_count
 
             params = (self.positive_img_count, self.negative_img_count, self.total_img_count)
 
             with connection.cursor() as cursor:
-                insert_params_sql = 'INSERT INTO similarity_param(postive_img_count, negative_img_count, total_img_count)' \
+                insert_params_sql = 'INSERT INTO similarity_param(positive_img_count, negative_img_count, total_img_count)' \
                                     ' value (%s, %s, %s)'
                 cursor.execute(insert_params_sql, params)
 
