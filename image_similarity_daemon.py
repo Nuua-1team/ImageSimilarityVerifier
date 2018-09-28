@@ -95,28 +95,30 @@ class ImageValidator:
             # validate img
             similarity = self.similarity_test()
             # threshold를 넘으면 1 안넘으면 2로 설정
-            is_saved = 0
+            status = 0
+            base_path = os.getcwd()
             img_path = ""
             img_name = ""
 
             if similarity > threshold:
-                is_saved = 1
+                status = 1
                 # 이미지가 이동할 경로 설정(유사한 이미지 경로)
                 img_path = ""
                 self.positive_img_count += 1
             else:
-                is_saved = 2
+                status = 2
                 # 이미지가 이동할 경로 설정(유사하지 않은 이미지 경로)
                 img_path = ""
                 self.negative_img_count += 1
 
+            file_address = base_path + '/' + img_path + '/' + img_name
+            # 이미지를 file_address 로 이동시킴
+            # 폴더 없으면 만드는 코드 작성(os,mkdir())
+
             # update img
             with connection.cursor() as cursor:
-                # Read a single record
-                sql = "SELECT `id`, `password` FROM `users` WHERE `email`=%s"
-                cursor.execute(sql, ('webmaster@python.org',))
-                result = cursor.fetchone()
-                print(result)
+                insert_img_param_sql = 'UPDATE image_info SET status = %s, similarity = %s, file_address = %s'
+                cursor.execute(insert_img_param_sql, (status, similarity, file_address))
 
         finally:
             # 현재까지의 이미지 사진들을 db에 저장함
@@ -126,14 +128,15 @@ class ImageValidator:
             counts['negative_img_count'] = self.negative_img_count
             counts['total_img_count'] = self.total_img_count
 
+            params = (self.positive_img_count, self.negative_img_count, self.total_img_count)
+
             with connection.cursor() as cursor:
-                sql = ''
+                insert_params_sql = 'INSERT INTO similarity_param(postive_img_count, negative_img_count, total_img_count)' \
+                                    ' value (%s, %s, %s)'
+                cursor.execute(insert_params_sql, params)
+
             connection.close()
 
 
 if __name__ == "__main__":
     obj = ImageValidator()
-    conn = obj.get_connection()
-    cursor = conn.cursor()
-    cursor.execute('select * from image_info')
-    obj.similarity_test()
