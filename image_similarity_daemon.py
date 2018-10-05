@@ -88,14 +88,21 @@ class ImageValidator:
         # download
         is_download_success = False
         try_count = 0
+
         while not is_download_success:
             try:
+                # download img using url
                 urllib.request.urlretrieve(url, path + filename)
             except:
-                print("download failed. try again...")
-                continue
-
+                # 5회 다운로드 시도 후 실패하면 다음 이미지로 넘어감
+                if try_count < 5:
+                    print("download failed. try again...")
+                    continue
+                else:
+                    break
             is_download_success = True
+
+        return is_download_success
 
     def similarity_test(self, search_keyword=''):
         # 나중에 new 뺄것
@@ -154,7 +161,11 @@ class ImageValidator:
                 print('search_keyword : ', search_keyword)
 
             # download img
-            self.download_img(url)
+            download_success = self.download_img(url)
+
+            if not download_success:
+                print("image download failed")
+                return
 
             # validate img
             similarity = self.similarity_test()
@@ -217,8 +228,6 @@ class ImageValidator:
 
             with connection.cursor() as cursor:
                 update_param_sql = 'UPDATE similarity_param SET positive_img_count = %s, negative_img_count = %s, total_img_count = %s'
-                # insert_params_sql = 'INSERT INTO similarity_param(positive_img_count, negative_img_count, total_img_count)' \
-                #                     ' value (%s, %s, %s)'
                 cursor.execute(update_param_sql, params)
                 connection.commit()
 
