@@ -166,26 +166,7 @@ class ImageDownloader:
             sharding_no = str(downloaded_image_idx // 1000) + "/"
 
             keyword = url_info['search_keyword']
-            if keyword == "경복궁":
-                keyword = "gyungbokgung"
-            elif keyword == "창덕궁":
-                keyword = "changdukgung"
-            elif keyword == "광화문":
-                keyword = "gwanghwamun"
-            elif keyword == "덕수궁":
-                keyword = "deoksugung"
-            elif keyword == "종묘":
-                keyword = "jongmyo"
-            elif keyword == "숭례문":
-                keyword = "sungnyemun"
-            elif keyword == "동대문":
-                keyword = "dongdaemun"
-            elif keyword == "경희궁":
-                keyword = "gyeonghuigung"
-            elif keyword == "보신각":
-                keyword = "bosingak"
-            else:
-                keyword = "other"
+
 
             # 파일명은 image_idx로 지정
             filename = str(url_info['image_idx']) + ".jpg"
@@ -198,11 +179,6 @@ class ImageDownloader:
             # Create when directory does not exist
             if not os.path.isdir(path):
                 os.makedirs(path)
-
-            # print(len(os.walk(path).next()[2]))
-            # if len(os.walk(path).next()[2]) > 1000:
-            #     self.add_sharding_no()
-            #     self.sharding_no = self.sharding_no + 1
 
             # download
             is_download_success = False
@@ -233,18 +209,21 @@ class ImageDownloader:
                 # 100개씩 가져와서 무한for문 돌리기. 0이면 sleep n분
                 url_list = self.get_all_urls(size)
             else:
-                # 특정 키워드 전체 가져오기
+                # 특정 키워드 가져오기
                 # 100개씩 가져와서 무한for문 돌리기. 0이면 sleep n분
                 url_list = self.get_specific_urls(keyword, size)
 
             if len(url_list) == 0:
                 print('no url exists')
-                break
-                # time.sleep(60*10)
+                # time.sleep(60*60)
                 # continue
+                break
+
             print("url list size : ", len(url_list))
             self.download_images(url_list)
             print("download 1000 images took %s seconds" % (time.time() - start_time))
+
+        print("download finish")
 
 
 if __name__ == "__main__":

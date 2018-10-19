@@ -106,23 +106,37 @@ class ImageValidator:
 
         return is_download_success
 
-    def similarity_test(self, search_keyword=''):
-        # 나중에 new 뺄것
-        if search_keyword == '경복궁':
-            # target_img_path = 'reference/Kwanghwamun-reference.jpg'
-            target_img_path = 'download/new_target_img.jpg'
-        elif search_keyword == '창덕궁':
-            target_img_path = 'reference/Chandeokgung-Injeongjeon-reference.jpg'
+    def similarity_test(self, keyword='', input_path=''):
+
+        if keyword == "경복궁":
+            target_img_path = "reference/gyungbokgung.jpg"
+        elif keyword == "창덕궁":
+            target_img_path = "reference/changdukgung.jpg"
+        elif keyword == "광화문":
+            target_img_path = "reference/gwanghwamun.jpg"
+        elif keyword == "덕수궁":
+            target_img_path = "reference/deoksugung.jpg"
+        elif keyword == "종묘":
+            target_img_path = "reference/jongmyo.jpg"
+        elif keyword == "숭례문":
+            target_img_path = "reference/sungnyemun.jpg"
+        elif keyword == "동대문":
+            target_img_path = "reference/dongdaemun.jpg"
+        elif keyword == "경희궁":
+            target_img_path = "reference/gyeonghuigung.jpg"
+        elif keyword == "보신각":
+            target_img_path = "reference/bosingak.jpg"
         else:
-            # for test
-            target_img_path = 'download/new_target_img.jpg'
-        input_img_paths = 'download/downloaded_img.jpg'
+            # set default image changdukgung
+            target_img_path = "reference/changdukgung.jpg"
+        # db에서 경로 입력받기(파라미터로)
+        input_path = 'download/downloaded_img.jpg'
 
         import time
         tf.logging.set_verbosity(tf.logging.ERROR)
 
         # Load bytes of image files
-        image_bytes = [tf.gfile.GFile(target_img_path, 'rb').read(), tf.gfile.GFile(input_img_paths, 'rb').read()]
+        image_bytes = [tf.gfile.GFile(target_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
 
         hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2"  # 224x224
 
