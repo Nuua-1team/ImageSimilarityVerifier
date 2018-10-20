@@ -106,6 +106,7 @@ class ImageValidator:
 
         return is_download_success
 
+    # db에서 경로 입력받기(파라미터로)
     def similarity_test(self, keyword='', input_path=''):
 
         if keyword == "경복궁":
@@ -128,9 +129,7 @@ class ImageValidator:
             target_img_path = "reference/bosingak.jpg"
         else:
             # set default image changdukgung
-            target_img_path = "reference/changdukgung.jpg"
-        # db에서 경로 입력받기(파라미터로)
-        input_path = 'download/downloaded_img.jpg'
+            target_img_path = "reference/default.jpg"
 
         import time
         tf.logging.set_verbosity(tf.logging.ERROR)
@@ -156,94 +155,46 @@ class ImageValidator:
 
         return similarities[1]
 
-    def validate_img(self, threshold):
+    def validate_img(self, threshold, size=1000):
 
-        url = ''
+        image_list = list()
 
         try:
             # get db connection
             connection = self.conn
-            # get download url from db
 
             with connection.cursor() as cursor:
-                # Create a new record
-                get_url_sql = 'SELECT image_idx, image_url, search_keyword FROM image_info WHERE status = 0 LIMIT 1'
-                cursor.execute(get_url_sql)
-                res = cursor.fetchone()
-                url = res['image_url']
-                image_idx = res['image_idx']
-                search_keyword = res['search_keyword']
-                print('url : ', url)
-                print('search_keyword : ', search_keyword)
+                get_image_info_sql = 'SELECT image_idx, image_url, file_address, search_keyword FROM image_info ' \
+                                     'WHERE status = 4 LIMIT %s'
+                cursor.execute(get_image_info_sql, (size,))
+                image_list = cursor.fetchall()
 
-            # download img
-            download_success = self.download_img(url)
+            for image in image_list:
+                similarity = self.similarity_test(keyword=image['search_keyword'], input_path=image['file_address'])
+                if isinstance(similarity, numpy.generic):
+                    similarity = numpy.asscalar(similarity)
 
-            if not download_success:
-                print("image download failed")
-                return
+                if similarity >= threshold:
+                    status = 1
+                    self.positive_img_count += 1
+                    pass
+                if similarity < threshold:
+                    status = 2
+                    self.negative_img_count += 1
+                    pass
 
-            # validate img
-            similarity = self.similarity_test()
-            if isinstance(similarity, numpy.generic):
-                similarity = numpy.asscalar(similarity)
-            # threshold를 넘으면 1 안넘으면 2로 설정
-            status = 0
-            base_path = os.getcwd()
-            img_path = ""
-            img_name = ""
+                self.total_img_count += 1
 
-            if similarity > threshold:
-                status = 1
-                # 이미지가 이동할 경로 설정(유사한 이미지 경로)
-                self.positive_img_count += 1
-                base_positive_path = os.getcwd() + '/positive/'
-                img_path = str(self.positive_img_count // 1000) + '/'
-                img_name = str(self.positive_img_count % 1000) + '.jpg'
-                file_path = base_positive_path + img_path
-                file_address = base_positive_path + img_path + img_name
+                with connection.cursor() as cursor:
+                    update_img_validation_sql = 'UPDATE image_info SET status = %s, similarity = %s ' \
+                                           'WHERE image_idx = %s'
+                    cursor.execute(update_img_validation_sql, (status, similarity, image['image_idx']))
 
-            else:
-                status = 2
-                # 이미지가 이동할 경로 설정(유사하지 않은 이미지 경로)
-                self.negative_img_count += 1
-                base_negative_path = os.getcwd() + '/negative/'
-                img_path = str(self.negative_img_count // 1000) + '/'
-                img_name = str(self.negative_img_count % 1000) + '.jpg'
-                file_path = base_negative_path + img_path
-                file_address = base_negative_path + img_path + img_name
+                    params = (self.positive_img_count, self.negative_img_count, self.total_img_count)
+                    update_param_sql = 'UPDATE similarity_param SET positive_img_count = %s, negative_img_count = %s,' \
+                                       ' total_img_count = %s'
 
-            # 이미지를 file_address 로 이동시킴
-            # 폴더 없으면 만드는 코드 작성(os,mkdir())
-
-            print('base path : ' + base_path + '\\downloaded_img.jpg')
-            print('path : ', file_address)
-
-            download_file_path = str(base_path + '\\download\\downloaded_img.jpg').replace("\\", '/')
-            after_move_path = file_address.replace("\\", '/')
-            # Create when directory does not exist
-            if not os.path.isdir(file_path):
-                os.makedirs(file_path)
-
-            os.rename(download_file_path, after_move_path)
-
-            self.total_img_count += 1
-
-            # update img
-            with connection.cursor() as cursor:
-                insert_img_param_sql = 'UPDATE image_info SET status = %s, similarity = %s, file_address = %s ' \
-                                       'WHERE image_idx = %s'
-                cursor.execute(insert_img_param_sql, (status, similarity, file_address, image_idx))
-                connection.commit()
-
-        finally:
-            # 현재까지의 이미지 사진들을 db에 저장함
-
-            params = (self.positive_img_count, self.negative_img_count, self.total_img_count)
-            print('params', params)
-
-            with connection.cursor() as cursor:
-                update_param_sql = 'UPDATE similarity_param SET positive_img_count = %s, negative_img_count = %s,' \
-                                   ' total_img_count = %s'
-                cursor.execute(update_param_sql, params)
-                connection.commit()
+                    cursor.execute(update_param_sql, params)
+                    connection.commit()
+        except Exception as e:
+            print(e)

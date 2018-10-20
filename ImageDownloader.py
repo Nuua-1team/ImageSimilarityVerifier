@@ -49,22 +49,6 @@ class ImageDownloader:
     def __del__(self):
         self.disconnect_connection()
 
-    # def update_counter(self, counter_num):
-    #
-    #     update_counter_sql = "UPDATE similarity_param SET sharding_no = %s"
-    #     try:
-    #         conn = self.conn
-    #         cursor = conn.cursor()
-    #
-    #         cursor.execute(update_counter_sql, (str(counter_num),))
-    #         conn.commit()
-    #
-    #     except Exception as e:
-    #         print(e)
-    #     finally:
-    #         self.download_counter = counter_num
-    #         cursor.close()
-
     def get_all_urls(self, size=1000):
         get_all_url_sql = 'SELECT image_idx, image_url, search_keyword FROM image_info WHERE status = 0 LIMIT %s'
         result = list()
@@ -193,6 +177,7 @@ class ImageDownloader:
                     # 5회 다운로드 시도 후 실패하면 다음 이미지로 넘어감
                     if try_count < 5:
                         print("download failed. try again...")
+                        try_count = try_count + 1
                         continue
                     else:
                         break
