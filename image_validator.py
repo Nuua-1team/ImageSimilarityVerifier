@@ -51,44 +51,11 @@ class ImageValidator:
             if self.conn is not None:
                 is_conn_success = True
 
-        return self.conn
-
-    def disconnect_connection(self):
+    def db_disconnect(self):
         self.conn.close()
 
     def __del__(self):
-        self.disconnect_connection()
-
-    # png일때랑 jpg 일때랑 고려할 것
-    def download_img(self, url, path="/download/"):
-
-        # file path and file name to download
-        path = os.getcwd() + path
-
-        filename = "downloaded_img.jpg"
-
-        # Create when directory does not exist
-        if not os.path.isdir(path):
-            os.makedirs(path)
-
-        # download
-        is_download_success = False
-        try_count = 0
-
-        while not is_download_success:
-            try:
-                # download img using url
-                urllib.request.urlretrieve(url, path + filename)
-            except:
-                # 5회 다운로드 시도 후 실패하면 다음 이미지로 넘어감
-                if try_count < 5:
-                    print("download failed. try again...")
-                    continue
-                else:
-                    break
-            is_download_success = True
-
-        return is_download_success
+        self.db_disconnect()
 
     # db에서 경로 입력받기(파라미터로)
     def similarity_test(self, keyword='', input_path=''):
@@ -176,7 +143,7 @@ class ImageValidator:
         # [사람과 유사하면 True 아니면 False, 유사도]
         return [False, arch_similarity]
 
-    def validate_img(self, threshold, size=1000):
+    def validate_img(self, threshold, size=100):
         STATUS_POSITIVE = 1
         STATUS_NEGATIVE = 2
         STATUS_PERSON = 2
@@ -187,6 +154,7 @@ class ImageValidator:
             while True:
                 image_list = list()
                 with connection.cursor() as cursor:
+                    # DB에서 다운로드가 완료된 이미지 정보와 경로를 size만큼 가져옴
                     get_image_info_sql = 'SELECT image_idx, image_url, file_address, search_keyword FROM image_info ' \
                                          'WHERE status = 4 LIMIT %s'
                     cursor.execute(get_image_info_sql, (size,))
@@ -197,6 +165,8 @@ class ImageValidator:
                     break
 
                 for image in image_list:
+                    # 유사도 측정 결과 크기가 2인 리스트로 반환
+                    # [사람과 유사한지 여부(boolean), 유사도(float)]
                     similarity_result = self.similarity_test(keyword=image['search_keyword'],
                                                              input_path=image['file_address'])
 
@@ -239,9 +209,15 @@ class ImageValidator:
 
                         cursor.execute(update_param_sql, params)
                         connection.commit()
+
         except Exception as e:
             print("exception occurs during process validate_img")
             print(e)
 
         finally:
             print("validate image finished")
+
+
+if __name__ == "__main__":
+    validator = ImageValidator()
+    validator.validate_img(threshold=0.6, size=10)

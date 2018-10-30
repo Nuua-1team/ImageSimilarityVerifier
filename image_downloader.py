@@ -213,5 +213,4 @@ class ImageDownloader:
 
 if __name__ == "__main__":
     obj = ImageDownloader()
-    # 실제 구동할 땐 similarity_param 테이블 초기화 시키고 할 것
     obj.run_download()
