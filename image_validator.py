@@ -13,6 +13,7 @@ class ImageValidator:
     def __init__(self, test_mode=False):
 
         self.get_connection()
+        self.graph_init()
 
         self.positive_img_count = 0
         self.negative_img_count = 0
@@ -57,20 +58,36 @@ class ImageValidator:
     def __del__(self):
         self.db_disconnect()
 
+    def graph_init(self):
+
+        hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2"  # 224x224
+        keyword_list = ['경복궁', '창덕궁', '광화문', '덕수궁', '종묘', '숭례문', '동대문', '경희궁', '보신각', '기타', '인물']
+        path_list = ["reference/gyeongbokgung.jpg", "reference/changdukgung.jpg", "reference/gwanghwamun.jpg",
+                     "reference/deoksugung.jpg", "reference/jongmyo.jpg", "reference/sungnyemun.jpg",
+                     "reference/dongdaemun.jpg", "reference/gyeonghuigung.jpg", "reference/bosingak.jpg",
+                     "reference/default.jpg", "reference/person_img.jpg"]
+
+        self.graph_list = [[build_graph(hub_module_url, path)]for path in path_list]
+        self.ref_image_list = [tf.gfile.GFile(path, 'rb').read() for path in path_list]
+
+
     # db에서 경로 입력받기(파라미터로)
     def similarity_test(self, keyword='', input_path=''):
 
         input_path = os.getcwd() + input_path
-        person_img_path = "reference/person_img.jpg"
-        hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2"  # 224x224
+        graph_list = self.graph_list
+        ref_image_list = self.ref_image_list
 
         tf.logging.set_verbosity(tf.logging.ERROR)
         # 사람과의 유사도를 먼저 측정한다.
         # Load bytes of image files
-        image_bytes = [tf.gfile.GFile(person_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
+        # try:
+        person_idx = 10
+        image_bytes = [ref_image_list[person_idx], tf.gfile.GFile(input_path, 'rb').read()]
 
         with tf.Graph().as_default():
-            input_byte, similarity_op = build_graph(hub_module_url, person_img_path)
+            input_byte = graph_list[person_idx][0]
+            similarity_op = graph_list[person_idx][1]
 
             with tf.Session() as sess:
                 sess.run(tf.global_variables_initializer())
@@ -93,37 +110,34 @@ class ImageValidator:
             # [사람과 유사도가 0.6 이상이면 True, 아니면 False, 유사도]
             return [True, person_similarity]
 
-        similarities = None
-        image_bytes = None
-
         if keyword == "경복궁":
-            target_img_path = "reference/gyungbokgung.jpg"
+            target_idx = 0
         elif keyword == "창덕궁":
-            target_img_path = "reference/changdukgung.jpg"
+            target_idx = 1
         elif keyword == "광화문":
-            target_img_path = "reference/gwanghwamun.jpg"
+            target_idx = 2
         elif keyword == "덕수궁":
-            target_img_path = "reference/deoksugung.jpg"
+            target_idx = 3
         elif keyword == "종묘":
-            target_img_path = "reference/jongmyo.jpg"
+            target_idx = 4
         elif keyword == "숭례문":
-            target_img_path = "reference/sungnyemun.jpg"
+            target_idx = 5
         elif keyword == "동대문":
-            target_img_path = "reference/dongdaemun.jpg"
+            target_idx = 6
         elif keyword == "경희궁":
-            target_img_path = "reference/gyeonghuigung.jpg"
+            target_idx = 7
         elif keyword == "보신각":
-            target_img_path = "reference/bosingak.jpg"
+            target_idx = 8
         else:
-            # set default image changdukgung
-            target_img_path = "reference/default.jpg"
+            target_idx = 9
 
-        # 레퍼런스 이미지와 비교
+            # 레퍼런스 이미지와 비교
         # Load bytes of image files
-        image_bytes = [tf.gfile.GFile(target_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
+        image_bytes = [ref_image_list[target_idx], tf.gfile.GFile(input_path, 'rb').read()]
 
         with tf.Graph().as_default():
-            input_byte, similarity_op = build_graph(hub_module_url, target_img_path)
+            input_byte = graph_list[target_idx][0]
+            similarity_op = graph_list[target_idx][1]
 
             with tf.Session() as sess:
                 sess.run(tf.global_variables_initializer())
@@ -167,7 +181,18 @@ class ImageValidator:
                 for image in image_list:
                     # 유사도 측정 결과 크기가 2인 리스트로 반환
                     # [사람과 유사한지 여부(boolean), 유사도(float)]
-                    similarity_result = self.similarity_test(keyword=image['search_keyword'],
+                    print("img_idx : ", image['image_idx'])
+                    if not os.path.exists(os.getcwd() + image['file_address']):
+                        # 이미지가 존재하지 않을 경우 db에서 이 idx 지우고 다음 이미지로 넘어감
+                        with connection.cursor() as cursor:
+                            sql = "DELETE FROM image_info WHERE image_idx = %s"
+                            cursor.execute(sql, (image['image_idx'],))
+                            connection.commit()
+                        continue
+                        pass
+
+                    else:
+                        similarity_result = self.similarity_test(keyword=image['search_keyword'],
                                                              input_path=image['file_address'])
 
                     is_similar_with_people = similarity_result[0]
@@ -195,7 +220,7 @@ class ImageValidator:
 
                     with connection.cursor() as cursor:
                         if is_similar_with_people:
-                            update_img_validation_sql = 'UPDATE image_info SET status = %s, similarity_person = %s ' \
+                            update_img_validation_sql = 'UPDATE image_info SET status = %s, similarity_person = %s, similarity = 0 ' \
                                                         'WHERE image_idx = %s'
                         else:
                             update_img_validation_sql = 'UPDATE image_info SET status = %s, similarity = %s ' \
