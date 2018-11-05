@@ -7,17 +7,21 @@ import os
 import numpy
 import time
 
+PRELOAD_MODE = False
+
 
 class ImageValidator:
 
     def __init__(self, test_mode=False):
 
         self.get_connection()
-        self.graph_init()
+        if PRELOAD_MODE:
+            self.graph_init()
 
         self.positive_img_count = 0
         self.negative_img_count = 0
         self.total_img_count = 0
+
         try:
             conn = self.conn
             self.test_mode = test_mode
@@ -67,27 +71,26 @@ class ImageValidator:
                      "reference/dongdaemun.jpg", "reference/gyeonghuigung.jpg", "reference/bosingak.jpg",
                      "reference/default.jpg", "reference/person_img.jpg"]
 
-        self.graph_list = [[build_graph(hub_module_url, path)]for path in path_list]
+        self.path_list = path_list
+
+        self.graph_list = [build_graph(hub_module_url, path) for path in path_list]
         self.ref_image_list = [tf.gfile.GFile(path, 'rb').read() for path in path_list]
 
 
     # db에서 경로 입력받기(파라미터로)
-    def similarity_test(self, keyword='', input_path=''):
+    def similarity_test_old(self, keyword='', input_path=''):
 
         input_path = os.getcwd() + input_path
-        graph_list = self.graph_list
-        ref_image_list = self.ref_image_list
+        person_img_path = "reference/person_img.jpg"
+        hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2"  # 224x224
 
         tf.logging.set_verbosity(tf.logging.ERROR)
         # 사람과의 유사도를 먼저 측정한다.
         # Load bytes of image files
-        # try:
-        person_idx = 10
-        image_bytes = [ref_image_list[person_idx], tf.gfile.GFile(input_path, 'rb').read()]
+        image_bytes = [tf.gfile.GFile(person_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
 
         with tf.Graph().as_default():
-            input_byte = graph_list[person_idx][0]
-            similarity_op = graph_list[person_idx][1]
+            input_byte, similarity_op = build_graph(hub_module_url, person_img_path)
 
             with tf.Session() as sess:
                 sess.run(tf.global_variables_initializer())
@@ -99,6 +102,93 @@ class ImageValidator:
                 print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
 
                 person_similarity = similarities[1]
+
+        print("- person img similarity: %.2f" % similarities[1])
+
+        if isinstance(person_similarity, numpy.generic):
+            person_similarity = numpy.asscalar(person_similarity)
+
+        # return whether similar with person or not
+        if person_similarity >= 0.6:
+            # [사람과 유사도가 0.6 이상이면 True, 아니면 False, 유사도]
+            return [True, person_similarity]
+
+        similarities = None
+        image_bytes = None
+
+        if keyword == "경복궁":
+            target_img_path = "reference/gyeongbokgung.jpg"
+        elif keyword == "창덕궁":
+            target_img_path = "reference/changdukgung.jpg"
+        elif keyword == "광화문":
+            target_img_path = "reference/gwanghwamun.jpg"
+        elif keyword == "덕수궁":
+            target_img_path = "reference/deoksugung.jpg"
+        elif keyword == "종묘":
+            target_img_path = "reference/jongmyo.jpg"
+        elif keyword == "숭례문":
+            target_img_path = "reference/sungnyemun.jpg"
+        elif keyword == "동대문":
+            target_img_path = "reference/dongdaemun.jpg"
+        elif keyword == "경희궁":
+            target_img_path = "reference/gyeonghuigung.jpg"
+        elif keyword == "보신각":
+            target_img_path = "reference/bosingak.jpg"
+        else:
+            # set default image changdukgung
+            target_img_path = "reference/default.jpg"
+
+        # 레퍼런스 이미지와 비교
+        # Load bytes of image files
+        image_bytes = [tf.gfile.GFile(target_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
+
+        with tf.Graph().as_default():
+            input_byte, similarity_op = build_graph(hub_module_url, target_img_path)
+
+            with tf.Session() as sess:
+                sess.run(tf.global_variables_initializer())
+                t0 = time.time()  # for time check
+
+                # Inference similarities
+                similarities = sess.run(similarity_op, feed_dict={input_byte: image_bytes})
+
+                print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
+
+                arch_similarity = similarities[1]
+
+        print("- similarity: %.2f" % arch_similarity)
+
+        if isinstance(arch_similarity, numpy.generic):
+            arch_similarity = numpy.asscalar(arch_similarity)
+        # [사람과 유사하면 True 아니면 False, 유사도]
+        return [False, arch_similarity]
+
+    def similarity_test_preload(self, keyword='', input_path=''):
+
+        input_path = os.getcwd() + input_path
+        graph_list = self.graph_list
+        ref_image_list = self.ref_image_list
+        path_list = self.path_list
+
+        tf.logging.set_verbosity(tf.logging.ERROR)
+        # 사람과의 유사도를 먼저 측정한다.
+        # Load bytes of image files
+
+        person_idx = 10
+        image_bytes = [tf.gfile.GFile(path_list[person_idx], 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
+
+        input_byte, similarity_op = graph_list[person_idx]
+
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            t0 = time.time()  # for time check
+
+            # Inference similarities
+            similarities = sess.run(similarity_op, feed_dict={input_byte: image_bytes})
+
+            print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
+
+            person_similarity = similarities[1]
 
         print("- person img similarity: %.2f" % similarities[1])
 
@@ -135,25 +225,24 @@ class ImageValidator:
         # Load bytes of image files
         image_bytes = [ref_image_list[target_idx], tf.gfile.GFile(input_path, 'rb').read()]
 
-        with tf.Graph().as_default():
-            input_byte = graph_list[target_idx][0]
-            similarity_op = graph_list[target_idx][1]
+        input_byte, similarity_op = graph_list[target_idx]
 
-            with tf.Session() as sess:
-                sess.run(tf.global_variables_initializer())
-                t0 = time.time()  # for time check
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            t0 = time.time()  # for time check
 
-                # Inference similarities
-                similarities = sess.run(similarity_op, feed_dict={input_byte: image_bytes})
+            # Inference similarities
+            similarities = sess.run(similarity_op, feed_dict={input_byte: image_bytes})
 
-                print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
+            print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
 
-                arch_similarity = similarities[1]
+            arch_similarity = similarities[1]
 
         print("- similarity: %.2f" % arch_similarity)
 
         if isinstance(arch_similarity, numpy.generic):
             arch_similarity = numpy.asscalar(arch_similarity)
+
         # [사람과 유사하면 True 아니면 False, 유사도]
         return [False, arch_similarity]
 
@@ -188,12 +277,17 @@ class ImageValidator:
                             sql = "DELETE FROM image_info WHERE image_idx = %s"
                             cursor.execute(sql, (image['image_idx'],))
                             connection.commit()
+                            print(image['file_address'], "not exist")
                         continue
-                        pass
 
                     else:
-                        similarity_result = self.similarity_test(keyword=image['search_keyword'],
-                                                             input_path=image['file_address'])
+                        if PRELOAD_MODE:
+                            similarity_result = self.similarity_test_preload(keyword=image['search_keyword'],
+                                                                             input_path=image['file_address'])
+                        else:
+                            similarity_result = self.similarity_test_old(keyword=image['search_keyword'],
+                                                                          input_path=image['file_address'])
+
 
                     is_similar_with_people = similarity_result[0]
                     similarity = similarity_result[1]
