@@ -48,4 +48,4 @@ def build_graph(hub_module_url, target_image_path):
     similarity = dot / (tf.norm(target_image, axis=1) * tf.norm(input_image, axis=1))
     similarity = tf.reshape(similarity, [-1])
 
-    return input_byte, similarity
+    return [input_byte, similarity]
