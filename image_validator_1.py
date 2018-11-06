@@ -259,7 +259,7 @@ class ImageValidator:
                 with connection.cursor() as cursor:
                     # DB에서 다운로드가 완료된 이미지 정보와 경로를 size만큼 가져옴
                     get_image_info_sql = 'SELECT image_idx, image_url, file_address, search_keyword FROM image_info ' \
-                                         'WHERE status = 4 and image_idx%2=1 LIMIT %s'
+                                         'WHERE status = 4 and mod(image_idx,2)=1 LIMIT %s'
                     cursor.execute(get_image_info_sql, (size,))
                     image_list = cursor.fetchall()
 
