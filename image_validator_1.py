@@ -81,37 +81,37 @@ class ImageValidator:
     def similarity_test_old(self, keyword='', input_path=''):
 
         input_path = os.getcwd() + input_path
-        person_img_path = "reference/person_img.jpg"
+        # person_img_path = "reference/person_img.jpg"
         hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2"  # 224x224
 
         tf.logging.set_verbosity(tf.logging.ERROR)
         # 사람과의 유사도를 먼저 측정한다.
         # Load bytes of image files
-        image_bytes = [tf.gfile.GFile(person_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
-
-        with tf.Graph().as_default():
-            input_byte, similarity_op = build_graph(hub_module_url, person_img_path)
-
-            with tf.Session() as sess:
-                sess.run(tf.global_variables_initializer())
-                t0 = time.time()  # for time check
-
-                # Inference similarities
-                similarities = sess.run(similarity_op, feed_dict={input_byte: image_bytes})
-
-                print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
-
-                person_similarity = similarities[1]
-
-        print("- person img similarity: %.2f" % similarities[1])
-
-        if isinstance(person_similarity, numpy.generic):
-            person_similarity = numpy.asscalar(person_similarity)
-
-        # return whether similar with person or not
-        if person_similarity >= 0.6:
-            # [사람과 유사도가 0.6 이상이면 True, 아니면 False, 유사도]
-            return [True, person_similarity]
+        # image_bytes = [tf.gfile.GFile(person_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
+        #
+        # with tf.Graph().as_default():
+        #     input_byte, similarity_op = build_graph(hub_module_url, person_img_path)
+        #
+        #     with tf.Session() as sess:
+        #         sess.run(tf.global_variables_initializer())
+        #         t0 = time.time()  # for time check
+        # 
+        #         # Inference similarities
+        #         similarities = sess.run(similarity_op, feed_dict={input_byte: image_bytes})
+        #
+        #         print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
+        #
+        #         person_similarity = similarities[1]
+        #
+        # print("- person img similarity: %.2f" % similarities[1])
+        #
+        # if isinstance(person_similarity, numpy.generic):
+        #     person_similarity = numpy.asscalar(person_similarity)
+        #
+        # # return whether similar with person or not
+        # if person_similarity >= 0.6:
+        #     # [사람과 유사도가 0.6 이상이면 True, 아니면 False, 유사도]
+        #     return [True, person_similarity]
 
         similarities = None
         image_bytes = None
