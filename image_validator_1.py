@@ -21,8 +21,6 @@ class ImageValidator:
         self.positive_img_count = 0
         self.negative_img_count = 0
         self.total_img_count = 0
-        self.sess = tf.Session()
-
 
         try:
             conn = self.conn
@@ -37,7 +35,7 @@ class ImageValidator:
                 self.positive_img_count = result['positive_img_count']
                 self.negative_img_count = result['negative_img_count']
                 self.total_img_count = result['total_img_count']
-
+                
 
         except Exception as e:
             print(e)
@@ -148,16 +146,17 @@ class ImageValidator:
 
         with tf.Graph().as_default():
             input_byte, similarity_op = build_graph(hub_module_url, target_img_path)
-            self.sess.run(tf.global_variables_initializer())
 
-            t0 = time.time()  # for time check
+            with tf.Session() as sess:
+                sess.run(tf.global_variables_initializer())
+                t0 = time.time()  # for time check
 
-            # Inference similarities
-            similarities = self.sess.run(similarity_op, feed_dict={input_byte: image_bytes})
+                # Inference similarities
+                similarities = sess.run(similarity_op, feed_dict={input_byte: image_bytes})
 
-            print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
+                print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
 
-            arch_similarity = similarities[1]
+                arch_similarity = similarities[1]
 
         print("- similarity: %.2f" % arch_similarity)
 
