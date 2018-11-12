@@ -173,7 +173,7 @@ class ImageValidator:
         s_l = len(similarities)
 
         for idx,similarity in enumerate(similarities):
-            if idx%50==1 : print("%d of %d similarity: %.2f" % (idx,s_l,similarity))
+            if idx%25==1 : print("%d of %d similarity: %.2f" % (idx,s_l,similarity))
 
             if isinstance(similarity, numpy.generic):
                 similarities[idx] = numpy.asscalar(similarity)
@@ -355,4 +355,4 @@ class ImageValidator:
 
 if __name__ == "__main__":
     validator = ImageValidator()
-    validator.validate_img(threshold=0.6, size=100)
+    validator.validate_img(threshold=0.6, size=500)
