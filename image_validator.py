@@ -295,7 +295,7 @@ class ImageValidator:
 
                 for image in image_list:
                     #print("img_idx : ", image['image_idx'])
-                    if image['file_address'])==None or not os.path.exists(os.getcwd() + image['file_address']):
+                    if image['file_address']==None or not os.path.exists(os.getcwd() + image['file_address']):
                         # 이미지가 존재하지 않을 경우 db에서 이 idx 지우고 다음 이미지로 넘어감
                         with connection.cursor() as cursor:
                             sql = "DELETE FROM image_info WHERE image_idx = %s"
