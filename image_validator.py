@@ -152,7 +152,7 @@ class ImageValidator:
         # 레퍼런스 이미지와 비교
         # Load bytes of image files
         #image_bytes = [tf.gfile.GFile(target_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
-
+        print(target_img_path)
         image_bytes = [tf.gfile.GFile(name, 'rb').read() for name in [target_img_path] + input_paths]
 
         with tf.Graph().as_default():
