@@ -280,14 +280,14 @@ class ImageValidator:
                 image_list = list()
                 ex_image_list = [] #있는거만 있는 리스트
                 imagepath_list = [] #돌릴꺼 경로 리스트
-
+                tmp_keyword = None # 키워드 따로해줘야함
                 with connection.cursor() as cursor:
                     # DB에서 다운로드가 완료된 이미지 정보와 경로를 size만큼 가져옴
                     get_image_info_sql = 'SELECT image_idx, image_url, file_address, search_keyword FROM image_info ' \
                                          'WHERE status = 4 and mod(image_idx,'+GPU_CNT+')='+GPU_NUM+' LIMIT %s'
                     cursor.execute(get_image_info_sql, (size,))
                     image_list = cursor.fetchall()
-
+                tmp_keyword=image_list[0]['search_keyword']
 
                 if not image_list:
                     print("no more image_list")
@@ -304,6 +304,8 @@ class ImageValidator:
                             print(image['file_address'], "not exist")
                         continue
                     else:# 있는거만 경로 리스트에 넣고
+                        if tmp_keyword != image['search_keyword'] :
+                            break;
                         imagepath_list.append(os.getcwd()+image['file_address'])
                         ex_image_list.append(image)
 
@@ -313,7 +315,7 @@ class ImageValidator:
                 # if PRELOAD_MODE:
                 #     similarity_result = self.similarity_test_preload(keyword=image['search_keyword'],input_path=image['file_address'])
                 # else:
-                similarity_result = self.similarity_test_old(keyword=image['search_keyword'],input_paths=imagepath_list)
+                similarity_result = self.similarity_test_old(keyword=tmp_keyword,input_paths=imagepath_list)
 
 
                 # is_similar_with_people = similarity_result[0]
