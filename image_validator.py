@@ -278,13 +278,16 @@ class ImageValidator:
             while True:
 
                 image_list = list()
+                ex_image_list = [] #있는거만 있는 리스트
                 imagepath_list = [] #돌릴꺼 경로 리스트
+
                 with connection.cursor() as cursor:
                     # DB에서 다운로드가 완료된 이미지 정보와 경로를 size만큼 가져옴
                     get_image_info_sql = 'SELECT image_idx, image_url, file_address, search_keyword FROM image_info ' \
                                          'WHERE status = 4 and mod(image_idx,'+GPU_CNT+')='+GPU_NUM+' LIMIT %s'
                     cursor.execute(get_image_info_sql, (size,))
                     image_list = cursor.fetchall()
+
 
                 if not image_list:
                     print("no more image_list")
@@ -302,6 +305,7 @@ class ImageValidator:
                         continue
                     else:# 있는거만 경로 리스트에 넣고
                         imagepath_list.append(os.getcwd()+image['file_address'])
+                        ex_image_list.append(image)
 
 
                 # 유사도 측정 결과 크기가 2인 리스트로 반환
@@ -322,7 +326,7 @@ class ImageValidator:
                 # if is_similar_with_people:
                     # status = STATUS_PERSON
                     # self.negative_img_count += 1
-                for similarity , image in zip(similarity_result,imagepath_list):
+                for similarity , image in zip(similarity_result,ex_image_list):
                     if isinstance(similarity, numpy.generic):
                         similarity = numpy.asscalar(similarity)
                     #유사도가 역치보다 높은 경우
