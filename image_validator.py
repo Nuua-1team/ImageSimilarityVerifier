@@ -291,7 +291,7 @@ class ImageValidator:
                     break
 
                 for image in image_list:
-                    print("img_idx : ", image['image_idx'])
+                    #print("img_idx : ", image['image_idx'])
                     if not os.path.exists(os.getcwd() + image['file_address']):
                         # 이미지가 존재하지 않을 경우 db에서 이 idx 지우고 다음 이미지로 넘어감
                         with connection.cursor() as cursor:
@@ -355,4 +355,4 @@ class ImageValidator:
 
 if __name__ == "__main__":
     validator = ImageValidator()
-    validator.validate_img(threshold=0.6, size=50)
+    validator.validate_img(threshold=0.6, size=100)
