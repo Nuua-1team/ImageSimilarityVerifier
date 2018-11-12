@@ -322,7 +322,7 @@ class ImageValidator:
                 # if is_similar_with_people:
                     # status = STATUS_PERSON
                     # self.negative_img_count += 1
-                for similarity , image in zip(similarity_result,image_list):
+                for similarity , image in zip(similarity_result,imagepath_list):
                     if isinstance(similarity, numpy.generic):
                         similarity = numpy.asscalar(similarity)
                     #유사도가 역치보다 높은 경우
