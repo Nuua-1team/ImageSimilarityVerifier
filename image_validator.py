@@ -173,7 +173,7 @@ class ImageValidator:
         s_l = len(similarities)
 
         for idx,similarity in enumerate(similarities):
-            if idx%50==0 : print("%d of %d similarity: %.2f" % (idx,s_l,similarity))
+            if idx%50==1 : print("%d of %d similarity: %.2f" % (idx,s_l,similarity))
 
             if isinstance(similarity, numpy.generic):
                 similarities[idx] = numpy.asscalar(similarity)
@@ -323,6 +323,8 @@ class ImageValidator:
                     # status = STATUS_PERSON
                     # self.negative_img_count += 1
                 for similarity , image in zip(similarity_result,image_list):
+                    if isinstance(similarity, numpy.generic):
+                        similarity = numpy.asscalar(similarity)
                     #유사도가 역치보다 높은 경우
                     if similarity >= threshold:
                         status = STATUS_POSITIVE
@@ -353,4 +355,4 @@ class ImageValidator:
 
 if __name__ == "__main__":
     validator = ImageValidator()
-    validator.validate_img(threshold=0.6, size=10)
+    validator.validate_img(threshold=0.6, size=50)
