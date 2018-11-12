@@ -6,9 +6,13 @@ import urllib.request
 import os
 import numpy
 import time
-
+import sys
 PRELOAD_MODE = False
-
+GPU_CNT = sys.argv[1]
+GPU_NUM = sys.argv[2]
+#GPU 갯수랑 GPU NUM 으로 ,
+#2개쓰고 이게 0번쨰꺼 2 0
+# 2 1이케써야함
 
 class ImageValidator:
 
@@ -17,7 +21,7 @@ class ImageValidator:
         self.get_connection()
         if PRELOAD_MODE:
             self.graph_init()
-
+        """
         self.positive_img_count = 0
         self.negative_img_count = 0
         self.total_img_count = 0
@@ -35,8 +39,11 @@ class ImageValidator:
                 self.positive_img_count = result['positive_img_count']
                 self.negative_img_count = result['negative_img_count']
                 self.total_img_count = result['total_img_count']
+
+
         except Exception as e:
             print(e)
+        """
 
     def get_connection(self):
         is_conn_success = False
@@ -78,15 +85,17 @@ class ImageValidator:
 
 
     # db에서 경로 입력받기(파라미터로)
-    def similarity_test_old(self, keyword='', input_path=''):
+    def similarity_test_old(self, keyword='', input_paths=''):
 
-        input_path = os.getcwd() + input_path
-        person_img_path = "reference/person_img.jpg"
+        #input_path = os.getcwd() + input_path
+        # person_img_path = "reference/person_img.jpg"
         hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2"  # 224x224
 
         tf.logging.set_verbosity(tf.logging.ERROR)
-        # 사람과의 유사도를 먼저 측정한다.
-        # Load bytes of image files
+
+        """
+        사람과의 유사도를 먼저 측정한다.
+        Load bytes of image files
         image_bytes = [tf.gfile.GFile(person_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
 
         with tf.Graph().as_default():
@@ -112,6 +121,7 @@ class ImageValidator:
         if person_similarity >= 0.6:
             # [사람과 유사도가 0.6 이상이면 True, 아니면 False, 유사도]
             return [True, person_similarity]
+        """
 
         similarities = None
         image_bytes = None
@@ -140,7 +150,9 @@ class ImageValidator:
 
         # 레퍼런스 이미지와 비교
         # Load bytes of image files
-        image_bytes = [tf.gfile.GFile(target_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
+        #image_bytes = [tf.gfile.GFile(target_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
+
+        image_bytes = [tf.gfile.GFile(name, 'rb').read() for name in [target_img_path] + input_paths]
 
         with tf.Graph().as_default():
             input_byte, similarity_op = build_graph(hub_module_url, target_img_path)
@@ -155,13 +167,21 @@ class ImageValidator:
                 print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
 
                 arch_similarity = similarities[1]
+        # for similarity in similarities[1:], input_img_paths:
 
-        print("- similarity: %.2f" % arch_similarity)
+        s_l = len(similarities)
 
-        if isinstance(arch_similarity, numpy.generic):
-            arch_similarity = numpy.asscalar(arch_similarity)
+        for idx,similarity in enumerate(similarities):
+            if idx%50==0 : print("%d of %d similarity: %.2f" % (idx,s_l,similarity))
+
+            if isinstance(similarity, numpy.generic):
+                similarities[idx] = numpy.asscalar(similarity)
+
         # [사람과 유사하면 True 아니면 False, 유사도]
-        return [False, arch_similarity]
+        # return [False, arch_similarity]
+
+
+        return  similarities
 
     def similarity_test_preload(self, keyword='', input_path=''):
 
@@ -255,11 +275,13 @@ class ImageValidator:
             # get db connection
             connection = self.conn
             while True:
+
                 image_list = list()
+                imagepath_list = [] #돌릴꺼 경로 리스트
                 with connection.cursor() as cursor:
                     # DB에서 다운로드가 완료된 이미지 정보와 경로를 size만큼 가져옴
                     get_image_info_sql = 'SELECT image_idx, image_url, file_address, search_keyword FROM image_info ' \
-                                         'WHERE status = 4 LIMIT %s'
+                                         'WHERE status = 4 and mod(image_idx,'+GPU_CNT+')='+GPU_NUM+' LIMIT %s'
                     cursor.execute(get_image_info_sql, (size,))
                     image_list = cursor.fetchall()
 
@@ -268,8 +290,6 @@ class ImageValidator:
                     break
 
                 for image in image_list:
-                    # 유사도 측정 결과 크기가 2인 리스트로 반환
-                    # [사람과 유사한지 여부(boolean), 유사도(float)]
                     print("img_idx : ", image['image_idx'])
                     if not os.path.exists(os.getcwd() + image['file_address']):
                         # 이미지가 존재하지 않을 경우 db에서 이 idx 지우고 다음 이미지로 넘어감
@@ -279,55 +299,53 @@ class ImageValidator:
                             connection.commit()
                             print(image['file_address'], "not exist")
                         continue
-
-                    else:
-                        if PRELOAD_MODE:
-                            similarity_result = self.similarity_test_preload(keyword=image['search_keyword'],
-                                                                             input_path=image['file_address'])
-                        else:
-                            similarity_result = self.similarity_test_old(keyword=image['search_keyword'],
-                                                                          input_path=image['file_address'])
+                    else:# 있는거만 경로 리스트에 넣고
+                        imagepath_list.append(os.getcwd()+image['file_address'])
 
 
-                    is_similar_with_people = similarity_result[0]
-                    similarity = similarity_result[1]
+                # 유사도 측정 결과 크기가 2인 리스트로 반환
+                # [사람과 유사한지 여부(boolean), 유사도(float)]
+                if PRELOAD_MODE:
+                    similarity_result = self.similarity_test_preload(keyword=image['search_keyword'],input_path=image['file_address'])
+                else:
+                    similarity_result = self.similarity_test_old(keyword=image['search_keyword'],input_paths=imagepath_list)
 
+
+                    # is_similar_with_people = similarity_result[0]
+                    # similarity = similarity_result[1]
                     # [사람과 유사하면 True, 유사도]
-
-                    if isinstance(similarity, numpy.generic):
-                        similarity = numpy.asscalar(similarity)
+                    # if isinstance(similarity, numpy.generic):
+                    #     similarity = numpy.asscalar(similarity)
 
                     # 사람과 유사한 경우
-                    if is_similar_with_people:
-                        status = STATUS_PERSON
-                        self.negative_img_count += 1
-                    # 사람과 유사하지 않고, 유사도가 역치보다 높은 경우
-                    elif similarity >= threshold:
-                        status = STATUS_POSITIVE
-                        self.positive_img_count += 1
-                    # 사람과 유사하지 않고, 유사도가 역치보다 높은 경우
-                    elif similarity < threshold:
-                        status = STATUS_NEGATIVE
-                        self.negative_img_count += 1
+                    # if is_similar_with_people:
+                        # status = STATUS_PERSON
+                        # self.negative_img_count += 1
 
-                    self.total_img_count += 1
+                    for similarity in similarity_result:
+                        #유사도가 역치보다 높은 경우
+                        if similarity >= threshold:
+                            status = STATUS_POSITIVE
+                        #유사도가 역치보다 높은 경우
+                        elif similarity < threshold:
+                            status = STATUS_NEGATIVE
 
-                    with connection.cursor() as cursor:
-                        if is_similar_with_people:
-                            update_img_validation_sql = 'UPDATE image_info SET status = %s, similarity_person = %s, similarity = 0 ' \
-                                                        'WHERE image_idx = %s'
-                        else:
-                            update_img_validation_sql = 'UPDATE image_info SET status = %s, similarity = %s ' \
-                                                        'WHERE image_idx = %s'
+                        with connection.cursor() as cursor:
+                            if is_similar_with_people:
+                                update_img_validation_sql = 'UPDATE image_info SET status = %s, similarity_person = %s, similarity = 0 ' \
+                                                            'WHERE image_idx = %s'
+                            else:
+                                update_img_validation_sql = 'UPDATE image_info SET status = %s, similarity = %s ' \
+                                                            'WHERE image_idx = %s'
 
-                        cursor.execute(update_img_validation_sql, (status, similarity, image['image_idx']))
+                            cursor.execute(update_img_validation_sql, (status, similarity, image['image_idx']))
 
-                        params = (self.positive_img_count, self.negative_img_count, self.total_img_count)
-                        update_param_sql = 'UPDATE similarity_param SET positive_img_count = %s, ' \
-                                           'negative_img_count = %s, total_img_count = %s'
+                            # params = (self.positive_img_count, self.negative_img_count, self.total_img_count)
+                            # update_param_sql = 'UPDATE similarity_param SET positive_img_count = %s, ' \
+                            #                    'negative_img_count = %s, total_img_count = %s'
+                            # cursor.execute(update_param_sql, params)
 
-                        cursor.execute(update_param_sql, params)
-                        connection.commit()
+                            connection.commit()
 
         except Exception as e:
             print("exception occurs during process validate_img")
