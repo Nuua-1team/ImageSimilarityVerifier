@@ -55,35 +55,9 @@ class ImageValidator:
         hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2"  # 224x224
 
         tf.logging.set_verbosity(tf.logging.ERROR)
-
         similarities = None
         image_bytes = None
         target_img_path = TARGET_PATH;
-        # if keyword == "경복궁":
-        #     target_img_path = "reference/gyeongbokgung.jpg"
-        # elif keyword == "창덕궁":
-        #     target_img_path = "reference/changdukgung.jpg"
-        # elif keyword == "광화문":
-        #     target_img_path = "reference/gwanghwamun.jpg"
-        # elif keyword == "덕수궁":
-        #     target_img_path = "reference/deoksugung.jpg"
-        # elif keyword == "종묘":
-        #     target_img_path = "reference/jongmyo.jpg"
-        # elif keyword == "숭례문":
-        #     target_img_path = "reference/sungnyemun.jpg"
-        # elif keyword == "동대문":
-        #     target_img_path = "reference/dongdaemun.jpg"
-        # elif keyword == "경희궁":
-        #     target_img_path = "reference/gyeonghuigung.jpg"
-        # elif keyword == "보신각":
-        #     target_img_path = "reference/bosingak.jpg"
-        # else:
-        #     # set default image changdukgung
-        #     target_img_path = "reference/default.jpg"
-
-        # 레퍼런스 이미지와 비교
-        # Load bytes of image files
-        #image_bytes = [tf.gfile.GFile(target_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
         print(target_img_path)
         image_bytes = [tf.gfile.GFile(name, 'rb').read() for name in [target_img_path] + input_paths]
 
@@ -203,22 +177,19 @@ class ImageValidator:
         STATUS_POSITIVE = 1
         STATUS_NEGATIVE = 2
         STATUS_PERSON = 2
-
         try:
             # get db connection
             connection = self.conn
             while True:
-
                 image_list = list()
                 ex_image_list = [] #있는거만 있는 리스트
                 imagepath_list = [] #돌릴꺼 경로 리스트
-
                 with connection.cursor() as cursor:
                     # DB에서 다운로드가 완료된 이미지 정보와 경로를 size만큼 가져옴
                     get_image_info_index ='select image_info_id from simlists where target_name= \''+TARGET_PATH+'\' order by created_at desc limit 1'
+                    puts get_image_info_index
                     cursor.execute(get_image_info_index)
                     start_index = cursor.fetchone()
-
                     get_image_info_sql = 'SELECT image_idx, image_url, file_address, search_keyword FROM image_info ' \
                                          'WHERE image_idx > %s and mod(image_idx,'+GPU_CNT+')='+GPU_NUM+' LIMIT %s'
                     cursor.execute(get_image_info_sql, (start_index['image_info_id'],size))
