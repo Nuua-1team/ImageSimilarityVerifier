@@ -194,8 +194,9 @@ class ImageValidator:
                                          'WHERE image_idx > %s and mod(image_idx,'+GPU_CNT+')='+GPU_NUM+' LIMIT %s'
                     print(get_image_info_sql)
                     if start_index==None:
-                        start_index['image_info_id'] = 0
-                    cursor.execute(get_image_info_sql, (start_index['image_info_id'],size))
+                        cursor.execute(get_image_info_sql, (0,size))
+                    else:
+                        cursor.execute(get_image_info_sql, (start_index['image_info_id'],size))
                     image_list = cursor.fetchall()
                     print(image_list)
 
