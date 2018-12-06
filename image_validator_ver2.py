@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from similarity_module import build_graph
 import tensorflow as tf
 import pymysql
@@ -193,7 +194,6 @@ class ImageValidator:
                         start_index=0
                     else:
                         start_index = cursor.fetchone()['image_info_id']
-                    pdb.set_trace()
                     get_image_info_sql = 'SELECT image_idx, image_url, file_address, search_keyword FROM image_info ' \
                                          'WHERE image_idx > '+str(start_index)+' and mod(image_idx,'+GPU_CNT+')='+GPU_NUM+' LIMIT %s'
                     print(get_image_info_sql)
