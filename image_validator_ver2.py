@@ -344,8 +344,8 @@ class ImageValidator:
                             # update_img_validation_sql = 'UPDATE image_info SET status = %s, similarity_person = %s, similarity = 0 ' \
                                                         # 'WHERE image_idx = %s'
                         # else:
-                        update_img_validation_sql = 'INSERT IGNORE INTO simlists (sim,is_positive,image_info_id,created_at) VALUES (%s,%s,%s,now())'
-                        cursor.execute(update_img_validation_sql, (similarity, int(IS_POSITIVE) , image['image_idx']))
+                        update_img_validation_sql = 'INSERT IGNORE INTO simlists (sim,is_positive,image_info_id,target_name,created_at) VALUES (%s,%s,%s,now())'
+                        cursor.execute(update_img_validation_sql, (similarity, int(IS_POSITIVE), target_img_path, image['image_idx']))
                         # params = (self.positive_img_count, self.negative_img_count, self.total_img_count)
                         # update_param_sql = 'UPDATE similarity_param SET positive_img_count = %s, ' \
                         #                    'negative_img_count = %s, total_img_count = %s'
