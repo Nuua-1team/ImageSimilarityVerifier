@@ -187,13 +187,15 @@ class ImageValidator:
                 with connection.cursor() as cursor:
                     # DB에서 다운로드가 완료된 이미지 정보와 경로를 size만큼 가져옴
                     get_image_info_index ='select image_info_id from simlists where target_name= \''+TARGET_PATH+'\' order by created_at desc limit 1'
-                    puts(get_image_info_index)
+                    print(get_image_info_index)
                     cursor.execute(get_image_info_index)
                     start_index = cursor.fetchone()
                     get_image_info_sql = 'SELECT image_idx, image_url, file_address, search_keyword FROM image_info ' \
                                          'WHERE image_idx > %s and mod(image_idx,'+GPU_CNT+')='+GPU_NUM+' LIMIT %s'
+                    print(get_image_info_sql)
                     cursor.execute(get_image_info_sql, (start_index['image_info_id'],size))
                     image_list = cursor.fetchall()
+                    print(image_list)
 
                 if not image_list:
                     print("no more image_list")
