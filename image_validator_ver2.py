@@ -22,31 +22,6 @@ class ImageValidator:
     def __init__(self, test_mode=False):
 
         self.get_connection()
-        if PRELOAD_MODE:
-            self.graph_init()
-        """
-        self.positive_img_count = 0
-        self.negative_img_count = 0
-        self.total_img_count = 0
-
-        try:
-            conn = self.conn
-            self.test_mode = test_mode
-
-            with conn.cursor() as cursor:
-                param_init_sql = 'SELECT positive_img_count, negative_img_count, total_img_count ' \
-                                 'FROM similarity_param'
-                cursor.execute(param_init_sql)
-                result = cursor.fetchone()
-
-                self.positive_img_count = result['positive_img_count']
-                self.negative_img_count = result['negative_img_count']
-                self.total_img_count = result['total_img_count']
-
-
-        except Exception as e:
-            print(e)
-        """
 
     def get_connection(self):
         is_conn_success = False
@@ -72,21 +47,6 @@ class ImageValidator:
     def __del__(self):
         self.db_disconnect()
 
-    def graph_init(self):
-
-        hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2"  # 224x224
-        keyword_list = ['경복궁', '창덕궁', '광화문', '덕수궁', '종묘', '숭례문', '동대문', '경희궁', '보신각', '기타', '인물']
-        path_list = ["reference/gyeongbokgung.jpg", "reference/changdukgung.jpg", "reference/gwanghwamun.jpg",
-                     "reference/deoksugung.jpg", "reference/jongmyo.jpg", "reference/sungnyemun.jpg",
-                     "reference/dongdaemun.jpg", "reference/gyeonghuigung.jpg", "reference/bosingak.jpg",
-                     "reference/default.jpg", "reference/person_img.jpg"]
-
-        self.path_list = path_list
-
-        self.graph_list = [build_graph(hub_module_url, path) for path in path_list]
-        self.ref_image_list = [tf.gfile.GFile(path, 'rb').read() for path in path_list]
-
-
     # db에서 경로 입력받기(파라미터로)
     def similarity_test_old(self, keyword='', input_paths=''):
 
@@ -95,36 +55,6 @@ class ImageValidator:
         hub_module_url = "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/2"  # 224x224
 
         tf.logging.set_verbosity(tf.logging.ERROR)
-
-        """
-        사람과의 유사도를 먼저 측정한다.
-        Load bytes of image files
-        image_bytes = [tf.gfile.GFile(person_img_path, 'rb').read(), tf.gfile.GFile(input_path, 'rb').read()]
-
-        with tf.Graph().as_default():
-            input_byte, similarity_op = build_graph(hub_module_url, person_img_path)
-
-            with tf.Session() as sess:
-                sess.run(tf.global_variables_initializer())
-                t0 = time.time()  # for time check
-
-                # Inference similarities
-                similarities = sess.run(similarity_op, feed_dict={input_byte: image_bytes})
-
-                print("%d images inference time: %.2f s" % (len(similarities), time.time() - t0))
-
-                person_similarity = similarities[1]
-
-        print("- person img similarity: %.2f" % similarities[1])
-
-        if isinstance(person_similarity, numpy.generic):
-            person_similarity = numpy.asscalar(person_similarity)
-
-        # return whether similar with person or not
-        if person_similarity >= 0.6:
-            # [사람과 유사도가 0.6 이상이면 True, 아니면 False, 유사도]
-            return [True, person_similarity]
-        """
 
         similarities = None
         image_bytes = None
@@ -282,14 +212,17 @@ class ImageValidator:
                 image_list = list()
                 ex_image_list = [] #있는거만 있는 리스트
                 imagepath_list = [] #돌릴꺼 경로 리스트
-                tmp_keyword = None # 키워드 따로해줘야함
+
                 with connection.cursor() as cursor:
                     # DB에서 다운로드가 완료된 이미지 정보와 경로를 size만큼 가져옴
+                    get_image_info_index = 'select image_info_id from simlists order by created_at desc limit 1'
+                    cursor.execute(get_image_info_index)
+                    start_index = cursor.fetchone()
+
                     get_image_info_sql = 'SELECT image_idx, image_url, file_address, search_keyword FROM image_info ' \
-                                         'WHERE status = 4 and mod(image_idx,'+GPU_CNT+')='+GPU_NUM+' LIMIT %s'
-                    cursor.execute(get_image_info_sql, (size,))
+                                         'WHERE image_idx > %s and mod(image_idx,'+GPU_CNT+')='+GPU_NUM+' LIMIT %s'
+                    cursor.execute(get_image_info_sql, (start_index['image_info_id'],size))
                     image_list = cursor.fetchall()
-                tmp_keyword=image_list[0]['search_keyword']
 
                 if not image_list:
                     print("no more image_list")
@@ -306,8 +239,6 @@ class ImageValidator:
                             print(image['file_address'], "not exist")
                         continue
                     else:# 있는거만 경로 리스트에 넣고
-                        if tmp_keyword != image['search_keyword'] :
-                            break;
                         imagepath_list.append(os.getcwd()+image['file_address'])
                         ex_image_list.append(image)
 
@@ -317,7 +248,7 @@ class ImageValidator:
                 # if PRELOAD_MODE:
                 #     similarity_result = self.similarity_test_preload(keyword=image['search_keyword'],input_path=image['file_address'])
                 # else:
-                similarity_result = self.similarity_test_old(keyword=tmp_keyword,input_paths=imagepath_list)
+                similarity_result = self.similarity_test_old(input_paths=imagepath_list)
 
 
                 # is_similar_with_people = similarity_result[0]
