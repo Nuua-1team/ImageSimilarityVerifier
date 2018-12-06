@@ -215,7 +215,7 @@ class ImageValidator:
 
                 with connection.cursor() as cursor:
                     # DB에서 다운로드가 완료된 이미지 정보와 경로를 size만큼 가져옴
-                    get_image_info_index = 'select image_info_id from simlists order by created_at desc limit 1'
+                    get_image_info_index ='select image_info_id from simlists where target_name= \''+TARGET_PATH+'\' order by created_at desc limit 1'
                     cursor.execute(get_image_info_index)
                     start_index = cursor.fetchone()
 
@@ -275,7 +275,7 @@ class ImageValidator:
                             # update_img_validation_sql = 'UPDATE image_info SET status = %s, similarity_person = %s, similarity = 0 ' \
                                                         # 'WHERE image_idx = %s'
                         # else:
-                        update_img_validation_sql = 'INSERT IGNORE INTO simlists (sim,is_positive,image_info_id,target_name,created_at) VALUES (%s,%s,%s,now())'
+                        update_img_validation_sql = 'INSERT IGNORE INTO simlists (sim,is_positive,image_info_id,target_name,created_at) VALUES (%s,%s,%s,%s,now())'
                         cursor.execute(update_img_validation_sql, (similarity, int(IS_POSITIVE),  image['image_idx'],TARGET_PATH))
                         # params = (self.positive_img_count, self.negative_img_count, self.total_img_count)
                         # update_param_sql = 'UPDATE similarity_param SET positive_img_count = %s, ' \
@@ -293,4 +293,5 @@ class ImageValidator:
 
 if __name__ == "__main__":
     validator = ImageValidator()
+
     validator.validate_img(threshold=0.6, size=500)
