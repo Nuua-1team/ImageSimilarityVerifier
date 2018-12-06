@@ -310,24 +310,10 @@ class ImageValidator:
                         ex_image_list.append(image)
 
 
-                # 유사도 측정 결과 크기가 2인 리스트로 반환
-                # [사람과 유사한지 여부(boolean), 유사도(float)]
-                # if PRELOAD_MODE:
-                #     similarity_result = self.similarity_test_preload(keyword=image['search_keyword'],input_path=image['file_address'])
-                # else:
+
                 similarity_result = self.similarity_test_old(keyword=tmp_keyword,input_paths=imagepath_list)
 
 
-                # is_similar_with_people = similarity_result[0]
-                # similarity = similarity_result[1]
-                # [사람과 유사하면 True, 유사도]
-                # if isinstance(similarity, numpy.generic):
-                #     similarity = numpy.asscalar(similarity)
-
-                # 사람과 유사한 경우
-                # if is_similar_with_people:
-                    # status = STATUS_PERSON
-                    # self.negative_img_count += 1
                 for similarity , image in zip(similarity_result,ex_image_list):
                     if isinstance(similarity, numpy.generic):
                         similarity = numpy.asscalar(similarity)
