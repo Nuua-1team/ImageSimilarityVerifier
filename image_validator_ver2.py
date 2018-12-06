@@ -202,7 +202,7 @@ class ImageValidator:
 
                     image_list = cursor.fetchall()
 
-                    print(image_list)
+                    # print(image_list)
 
                 if not image_list:
                     print("no more image_list")
